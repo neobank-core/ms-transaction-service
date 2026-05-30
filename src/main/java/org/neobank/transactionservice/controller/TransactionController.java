@@ -16,6 +16,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -61,9 +63,19 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> getById(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(transactionMapper.toResponse(
-                transactionService.getById(id, jwt.getSubject())));
+        Transaction transaction = hasRole(jwt, "ADMIN")
+                ? transactionService.getById(id)
+                : transactionService.getById(id, jwt.getSubject());
+        return ResponseEntity.ok(transactionMapper.toResponse(transaction));
+    }
+
+    private boolean hasRole(Jwt jwt, String role) {
+        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+        if (realmAccess == null || !realmAccess.containsKey("roles")) {
+            return false;
+        }
+        Object roles = realmAccess.get("roles");
+        return roles instanceof List<?> roleList && roleList.contains(role);
     }
 }
-
 

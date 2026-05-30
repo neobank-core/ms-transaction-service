@@ -142,5 +142,11 @@ public class TransactionService {
         return transactionRepository.findByIdAndKeycloakUserId(id, keycloakUserId)
                 .orElseThrow(() -> new TransactionNotFoundException("Transaction not found: " + id));
     }
+
+    @Transactional
+    public Transaction getById(UUID id) {
+        return transactionRepository.findById(id)
+                .orElseThrow(() -> new TransactionNotFoundException("Transaction not found: " + id));
+    }
 }
 
