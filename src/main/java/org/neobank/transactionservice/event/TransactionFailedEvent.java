@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record TransactionFailedEvent(
         UUID transactionId,
+        String keycloakUserId,
         String reason,
         LocalDateTime failedAt
 ) {}
