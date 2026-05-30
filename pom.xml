@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.neobank</groupId>
-    <artifactId>transaction-service</artifactId>
+    <artifactId>ms-transaction-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>ms-transaction-service</name>
     <description>ms-transaction-service</description>
