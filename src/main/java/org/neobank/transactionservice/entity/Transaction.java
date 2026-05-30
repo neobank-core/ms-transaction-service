@@ -21,6 +21,9 @@ public class Transaction {
     @GeneratedValue
     private UUID id;
 
+    @Column(name = "keycloak_user_id")
+    private String keycloakUserId;
+
     @Column(name = "sender_card_id")
     private UUID senderCardId;
 
