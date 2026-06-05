@@ -15,15 +15,20 @@ import org.springframework.security.web.SecurityFilterChain;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+    private final InternalApiKeyFilter internalApiKeyFilter;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .addFilterBefore(internalApiKeyFilter, org.springframework.security.web.access.intercept.AuthorizationFilter.class)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
                         "/swagger-ui/**",
@@ -31,7 +36,8 @@ public class SecurityConfig {
                         "/v3/api-docs/**",
                         "/actuator/health",
                         "/actuator/info",
-                        "/actuator/prometheus"
+                        "/actuator/prometheus",
+                        "/api/transactions/internal/**"
                 ).permitAll().anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
         return http.build();

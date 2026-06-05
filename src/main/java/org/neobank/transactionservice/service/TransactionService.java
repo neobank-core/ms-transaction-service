@@ -1,5 +1,6 @@
 package org.neobank.transactionservice.service;
 
+import io.getunleash.Unleash;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +9,7 @@ import org.neobank.transactionservice.client.CardServiceClient;
 import org.neobank.transactionservice.client.dto.BalanceAdjustmentRequest;
 import org.neobank.transactionservice.client.dto.BalanceOperationResponse;
 import org.neobank.transactionservice.client.dto.InternalCardResponse;
+import org.neobank.transactionservice.config.FeatureFlags;
 import org.neobank.transactionservice.dto.CreateTransactionRequest;
 import org.neobank.transactionservice.dto.DepositRequest;
 import org.neobank.transactionservice.entity.Transaction;
@@ -29,6 +31,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,9 +45,20 @@ public class TransactionService {
     private final TransactionLedgerRepository ledgerRepository;
     private final CardServiceClient cardServiceClient;
     private final AccountServiceClient accountServiceClient;
+    private final Unleash unleash;
 
     @Transactional
     public Transaction createTransaction(String initiatorUserId, String idempotencyKey, CreateTransactionRequest request) {
+        if (unleash.isEnabled(FeatureFlags.MAINTENANCE_MODE)) {
+            throw new TransactionValidationException("System is under maintenance");
+        }
+
+        if (unleash.isEnabled(FeatureFlags.TRANSFER_DAILY_LIMIT)) {
+            if (request.amount().compareTo(new BigDecimal("10000")) > 0) {
+                throw new TransactionValidationException("Daily limit exceeded");
+            }
+        }
+
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             throw new TransactionValidationException("X-Idempotency-Key header is required");
         }
@@ -189,7 +203,7 @@ public class TransactionService {
     @Transactional
     public Transaction getById(UUID id, String keycloakUserId) {
         return transactionRepository.findByIdAndKeycloakUserId(id, keycloakUserId)
-                .orElseThrow(() -> new TransactionNotFoundException("Transaction not found: " + id));
+                .orElseThrow(() -> new TransactionNotFoundException("Transaction not found or access denied"));
     }
 
     @Transactional
@@ -198,9 +212,48 @@ public class TransactionService {
                 .orElseThrow(() -> new TransactionNotFoundException("Transaction not found: " + id));
     }
 
+    public List<Transaction> getTransactionsByAccount(UUID accountId) {
+        return transactionRepository.findAllByAccountId(accountId);
+    }
+
     public void failPendingTransactionsForCard(UUID cardId, String reason) {
         var pending = transactionRepository.findBySenderCardIdAndStatus(cardId, TransactionStatus.PENDING);
         pending.forEach(tx -> failTransaction(tx, reason));
+    }
+
+    @Transactional
+    public Transaction reverseTransaction(UUID id) {
+        Transaction transaction = getById(id);
+
+        if (transaction.getStatus() != TransactionStatus.COMPLETED) {
+            throw new TransactionValidationException("Only COMPLETED transactions can be reversed");
+        }
+
+        if (transaction.getType() == TransactionType.TRANSFER) {
+            InternalCardResponse senderCard = cardServiceClient.getCard(transaction.getSenderCardId());
+            InternalCardResponse receiverCard = cardServiceClient.getCard(transaction.getReceiverCardId());
+            BalanceAdjustmentRequest adjustment = new BalanceAdjustmentRequest(transaction.getAmount(), transaction.getCurrency());
+
+            accountServiceClient.debit(receiverCard.accountId(), adjustment);
+            accountServiceClient.credit(senderCard.accountId(), adjustment);
+        } else if (transaction.getType() == TransactionType.DEPOSIT) {
+            UUID userId = UUID.fromString(transaction.getKeycloakUserId());
+            BalanceOperationResponse account = accountServiceClient.getCheckingAccount(userId);
+            BalanceAdjustmentRequest adjustment = new BalanceAdjustmentRequest(transaction.getAmount(), transaction.getCurrency());
+            accountServiceClient.debit(account.accountId(), adjustment);
+        }
+
+        transaction.setStatus(TransactionStatus.FAILED);
+        Transaction saved = transactionRepository.save(transaction);
+        
+        publisher.publishFailed(new TransactionFailedEvent(
+                saved.getId(),
+                saved.getKeycloakUserId(),
+                "Transaction reversed by admin",
+                LocalDateTime.now()
+        ));
+
+        return saved;
     }
 
     private void validateCardForTransfer(InternalCardResponse card, String initiatorUserId, boolean mustBeSender) {
