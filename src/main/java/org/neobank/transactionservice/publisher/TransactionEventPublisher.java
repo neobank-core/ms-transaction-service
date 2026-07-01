@@ -1,6 +1,7 @@
 package org.neobank.transactionservice.publisher;
 
 import lombok.RequiredArgsConstructor;
+import org.neobank.transactionservice.event.CompensateSenderDebitEvent;
 import org.neobank.transactionservice.event.TransactionCompletedEvent;
 import org.neobank.transactionservice.event.TransactionFailedEvent;
 import org.neobank.transactionservice.event.TransactionInitiatedEvent;
@@ -23,5 +24,9 @@ public class TransactionEventPublisher {
 
     public void publishFailed(TransactionFailedEvent event) {
         kafkaTemplate.send("transaction.failed", event.transactionId().toString(), event);
+    }
+
+    public void publishCompensate(CompensateSenderDebitEvent event) {
+        kafkaTemplate.send("transaction.compensate", event.transactionId().toString(), event);
     }
 }

@@ -6,8 +6,8 @@ import java.util.UUID;
 public record TransactionInitiatedEvent(
         UUID transactionId,
         String initiatorUserId,
-        UUID senderCardId,
-        UUID receiverCardId,
+        UUID senderAccountId,
+        UUID receiverAccountId,
         BigDecimal amount,
         String currency
 ) {}

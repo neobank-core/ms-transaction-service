@@ -10,11 +10,14 @@ import java.util.UUID;
 
 @FeignClient(
         name = "card-service",
-        url = "${card-service.url}",
-        configuration = FeignInternalConfig.class
+        configuration = FeignInternalConfig.class,
+        fallbackFactory = CardServiceClientFallbackFactory.class
 )
 public interface CardServiceClient {
 
     @GetMapping("/api/internal/cards/{id}")
-    InternalCardResponse getCard(@PathVariable UUID id);
+    InternalCardResponse getCard(@PathVariable("id") UUID id);
+
+    @GetMapping("/api/internal/cards/by-number/{cardNumber}")
+    InternalCardResponse getCardByNumber(@PathVariable("cardNumber") String cardNumber);
 }

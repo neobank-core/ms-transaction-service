@@ -13,17 +13,17 @@ import java.util.UUID;
 
 @FeignClient(
         name = "account-service",
-        url = "${account-service.url}",
-        configuration = FeignInternalConfig.class
+        configuration = FeignInternalConfig.class,
+        fallbackFactory = AccountServiceClientFallbackFactory.class
 )
 public interface AccountServiceClient {
 
     @GetMapping("/api/internal/accounts/user/{userId}/checking")
-    BalanceOperationResponse getCheckingAccount(@PathVariable UUID userId);
+    BalanceOperationResponse getCheckingAccount(@PathVariable("userId") UUID userId);
 
     @PostMapping("/api/internal/accounts/{id}/debit")
-    BalanceOperationResponse debit(@PathVariable UUID id, @RequestBody BalanceAdjustmentRequest request);
+    BalanceOperationResponse debit(@PathVariable("id") UUID id, @RequestBody BalanceAdjustmentRequest request);
 
     @PostMapping("/api/internal/accounts/{id}/credit")
-    BalanceOperationResponse credit(@PathVariable UUID id, @RequestBody BalanceAdjustmentRequest request);
+    BalanceOperationResponse credit(@PathVariable("id") UUID id, @RequestBody BalanceAdjustmentRequest request);
 }

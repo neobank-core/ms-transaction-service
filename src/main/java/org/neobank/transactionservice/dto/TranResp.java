@@ -4,13 +4,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record TransactionResponse(
+public record TranResp(
         UUID id,
         BigDecimal amount,
         String currency,
         String status,
         String type,
-        UUID senderCardId,
-        UUID receiverCardId,
         LocalDateTime createdAt
-) {}
+) {
+}

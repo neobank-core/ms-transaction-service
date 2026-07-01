@@ -10,8 +10,8 @@ import java.util.UUID;
 public record CreateTransactionRequest(
         @NotNull
         UUID senderCardId,
-        @NotNull
-        UUID receiverCardId,
+        @NotBlank
+        String receiverCardNumber,
         @NotNull
         @DecimalMin(value = "0.01", message = "Amount must be > 0")
         BigDecimal amount,

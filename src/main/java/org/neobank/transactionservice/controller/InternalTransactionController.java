@@ -21,17 +21,17 @@ public class InternalTransactionController {
     private final TransactionMapper transactionMapper;
 
     @GetMapping("/account/{accountId}")
-    public ResponseEntity<List<TransactionResponse>> getTransactionsByAccount(@PathVariable UUID accountId) {
+    public ResponseEntity<List<TransactionResponse>> getTransactionsByAccount(@PathVariable("accountId") UUID accountId) {
         List<TransactionResponse> response = transactionService.getTransactionsByAccount(accountId)
                 .stream()
-                .map(transactionMapper::toResponse)
+                .map(tx -> transactionMapper.toResponse(tx, tx.getKeycloakUserId()))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/reverse")
-    public ResponseEntity<TransactionResponse> reverseTransaction(@PathVariable UUID id) {
+    public ResponseEntity<TransactionResponse> reverseTransaction(@PathVariable("id") UUID id) {
         Transaction transaction = transactionService.reverseTransaction(id);
-        return ResponseEntity.ok(transactionMapper.toResponse(transaction));
+        return ResponseEntity.ok(transactionMapper.toResponse(transaction, transaction.getKeycloakUserId()));
     }
 }
